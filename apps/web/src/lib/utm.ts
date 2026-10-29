@@ -8,6 +8,9 @@ const UTM_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 // Prisma maps `String` to VARCHAR(191) on MySQL
 const MAX_UTM_VALUE_LENGTH = 191;
 
+// browsers ignore cookies with more than 4096 bytes, this leaves some room
+const MAX_UTM_COOKIE_LENGTH = 4000;
+
 const UTM_PARAMS = {
   utm_source: "utmSource",
   utm_medium: "utmMedium",
@@ -54,11 +57,18 @@ export function rememberUtmParams(search: string) {
   const params = getUtmParams(new URLSearchParams(search));
   if (!params) return;
 
+  // non-ASCII values grow a lot when encoded, so the cookie can get too big
+  const value = encodeURIComponent(JSON.stringify(params));
+  if (UTM_COOKIE_NAME.length + 1 + value.length > MAX_UTM_COOKIE_LENGTH) {
+    // the browser would drop it, so remove the old one instead of
+    // attributing the signup to an older campaign
+    document.cookie = `${UTM_COOKIE_NAME}=; path=/; max-age=0`;
+    return;
+  }
+
   const secure = window.location.protocol === "https:" ? "; secure" : "";
   // `lax` is needed so the cookie is sent when the OAuth provider redirects back
-  document.cookie = `${UTM_COOKIE_NAME}=${encodeURIComponent(
-    JSON.stringify(params)
-  )}; path=/; max-age=${UTM_COOKIE_MAX_AGE_SECONDS}; samesite=lax${secure}`;
+  document.cookie = `${UTM_COOKIE_NAME}=${value}; path=/; max-age=${UTM_COOKIE_MAX_AGE_SECONDS}; samesite=lax${secure}`;
 }
 
 /**

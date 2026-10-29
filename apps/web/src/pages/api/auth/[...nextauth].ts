@@ -128,8 +128,9 @@ export default (req: NextApiRequest, res: NextApiResponse) => {
       ...authOptions.events,
       // the request is only available here, so the UTM cookie is read per request
       async createUser(message) {
-        await authOptions.events?.createUser?.(message);
+        // saved first, so a failing project creation or LogSnag call doesn't skip it
         await saveUtmParams(message.user.id, req.cookies[UTM_COOKIE_NAME]);
+        await authOptions.events?.createUser?.(message);
       },
     },
   })(req, res);

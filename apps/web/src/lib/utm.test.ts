@@ -78,6 +78,38 @@ describe("rememberUtmParams", () => {
       utmSource: "twitter",
     });
   });
+
+  it("stores long ASCII values", () => {
+    const value = "a".repeat(191);
+    rememberUtmParams(
+      `?${new URLSearchParams({
+        utm_source: value,
+        utm_medium: value,
+        utm_campaign: value,
+        utm_term: value,
+        utm_content: value,
+      })}`
+    );
+
+    expect(
+      parseUtmCookie(decodeURIComponent(getUtmCookie()!))?.utmContent
+    ).toBe(value);
+  });
+
+  it("removes the stored parameters if the new ones don't fit in a cookie", () => {
+    rememberUtmParams("?utm_source=github");
+    // every character takes 9 bytes once it's percent encoded
+    const value = "\u0800".repeat(191);
+    rememberUtmParams(
+      `?${new URLSearchParams({
+        utm_source: value,
+        utm_medium: value,
+        utm_campaign: value,
+      })}`
+    );
+
+    expect(getUtmCookie()).toBeUndefined();
+  });
 });
 
 describe("parseUtmCookie", () => {
